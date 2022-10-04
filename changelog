@@ -1,0 +1,21 @@
+Change list for future versions
+===============================
+
+v3.0
+====
+Modules
+-------
+- C salis main module
+- C memory module
+- C evolver module
+- C process module
+- Python unit tests (`cffi`)
+Basic CLI
+---------
+- Loading/saving from/to a file
+- Initial simulation setup (from `json` file)
+- Running/stopping/saving
+- Printing of limited information to terminal
+Basic GUI
+---------
+- Ncurses or alternative

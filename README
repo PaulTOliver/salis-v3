@@ -1,0 +1,80 @@
+Salis v3
+========
+
+Changes to simulation
+---------------------
+- Reduced instruction set (32)
+- Relative addresses
+- Templates
+- While based loops
+- Multi-core (inter core reads)
+- Feeding dynamics
+
+Big data gathering (for awesome plots)
+--------------------------------------
+- Instruction execution
+- Instruction population
+- Instruction pattern (idiom) population
+- Newborn organism size
+- Organism count
+- Organism sizes
+
+Real-time data visualizations
+-----------------------------
+- Maybe work on GPU/SDL visualizer
+- Organism species (sort by similitude)
+
+Coding standards
+----------------
+- Modern C library (using c17+ std)
+- Python front-end (ncurses or alternative)
+
+File-based simulation setup
+---------------------------
+- Initial world settings
+- Organism compilation
+
+New ancestor
+------------
+- Pseudo-code:
+
+	search-forward 0 a
+	inc a
+	while
+		copy a b
+		zero c
+		alloc-forward b d
+		while b
+			read c
+			write d
+			inc c
+			inc d
+			dec b
+		endwhile
+		split
+	endwhile
+	1
+
+- Symbols
+
+	`]0a^a?:abzc}bd?brcwd^c^dVb.$.1`  # ancestor
+	`]0a^a)1`  # possible parasite
+
+CPU fields
+----------
+- ip
+- sp
+- mb1 address
+- mb1 size
+- mb2 address
+- mb2 size
+- feed address
+- feed size
+- rax
+- rbx
+- rcx
+- rdx
+- rex
+- rfx
+- rgx
+- rix[4]
