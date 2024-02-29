@@ -1,0 +1,389 @@
+#!/bin/bash
+
+# Project: Salis
+# Author:  Paul Oliver
+# Email:   contact@pauloliver.dev
+
+# Salis simulator launcher script. Builds salis binary (according to passed
+# arguments) and launches it. Binary is purged on exit. This JIT compilation
+# scheme allows to quickly switch between available architectures and UIs.
+
+set -euo pipefail
+
+headline="Salis: Simple A-Life Simulator."
+help_msg="show help and exit"
+
+usage() {
+cat << EOF
+${headline}
+Usage: ${0} [-h|--help] COMMAND [args...]
+
+Options:
+  -h, --help    ${help_msg}
+
+Commands:
+  bench         run benchmark test
+  load          load saved simulation
+  new           create a new simulation
+
+Use '-h' to list arguments for each command.
+Example: ${0} bench -h
+EOF
+}
+
+case ${1:-} in
+bench|load|new)
+    ;;
+-h|--help)
+    usage | less -CQS~
+    exit 0
+    ;;
+"")
+    echo "${0}: please specify command -- 'bench|load|new'"
+    exit 1
+    ;;
+*)
+    echo "${0}: invalid command -- '${1}'"
+    exit 1
+    ;;
+esac
+
+cmd=${1}
+
+shift
+
+falter() {
+    find src/${1}/ -type f | sed 's|.*/||; s|\.c||' | paste -sd: -
+}
+
+arches=`falter arch`
+uis=`falter ui`
+
+anc_def_desc() {
+    echo "default ancestor file name without extension, "
+    echo "to be compiled on all cores "
+    echo "('ANC' points to file 'ancs/<ARCH>/<ANC>.asm')"
+}
+
+anc_spec_def() {
+    echo "core specific ancestor file names separated by commas, "
+    echo "using same convention as with default ancestor (<ANC0>,<ANC1>,...), "
+    echo "when provided will override default ancestor on specified cores"
+}
+
+options=(
+    "A|anc-def|ANC|`anc_def_desc`|||bench:new"
+    "a|arch|ARCH|VM architecture|${arches}|dummy|bench:new"
+    "b|steps|N|number of steps to run in benchmark||0x1000000|bench"
+    "c|cores|N|number of simulator cores||2|bench:new"
+    "F|muta-flip||cosmic rays flip bits instead of randomizing whole bytes||false|bench:new"
+    "f|force||overwrite existing simulation of given name||false|new"
+    "h|help||${help_msg}|||bench:load:new"
+    "M|muta-pow|POW|mutator range exponent (range == 2^POW)||32|bench:new"
+    "m|mvec-pow|POW|memory vector size exponent (size == 2^POW)||20|bench:new"
+    "n|name|NAME|name of new or loaded simulation||def.sim|load:new"
+    "o|optimized||build Salis binary with optimizations||false|bench:load:new"
+    "p|pre-cmd|CMD|shell command to wrap executable (e.g. gdb)|||bench:load:new"
+    "S|anc-spec|ANC0,ANC1,...|`anc_spec_def`|||bench:new"
+    "s|seed|SEED|seed value for new simulation||0|bench:new"
+    "t|thread-gap|N|memory gap between cores (in bytes)||0x100|bench:load:new"
+    "u|ui|UI|user interface|${uis}|curses|load:new"
+    "y|sync-pow|POW|core sync interval exponent (interval == 2^POW)||20|bench:new"
+    "z|auto-save-pow|POW|auto save interval exponent (interval == 2^POW)||36|new"
+)
+
+field() {
+    echo ${1} | cut -d'|' -f${2}
+}
+
+flist() {
+    sopt=`field "${1}" 1`
+    lopt=`field "${1}" 2`
+    meta=`field "${1}" 3`
+
+    echo -n "[-${sopt}|--${lopt}`[[ -n ${meta} ]] && echo " ${meta}"`] "
+}
+
+fhelp() {
+    sopt=`field "${1}" 1`
+    lopt=`field "${1}" 2`
+    meta=`field "${1}" 3`
+
+    printf %-32s "  -${sopt}, --${lopt}`[[ -n ${meta} ]] && echo " ${meta}"`"
+
+    help=`field "${1}" 4`
+    choi=`field "${1}" 5`
+    defv=`field "${1}" 6`
+    copt=`[[ -n ${choi} ]] && echo " (choices: ${choi/:/, })"`
+    dopt=`[[ -n ${defv} ]] && echo " (default: ${defv})"`
+
+    echo ${help}${copt}${dopt}
+}
+
+fshort() {
+    sopt=`field "${1}" 1`
+    meta=`field "${1}" 3`
+
+    echo -n "${sopt}`[[ -n ${meta} ]] && echo :`"
+}
+
+flong() {
+    lopt=`field "${1}" 2`
+    meta=`field "${1}" 3`
+
+    echo -n "${lopt}`[[ -n ${meta} ]] && echo :`,"
+}
+
+fdefaults() {
+    lopt=`field "${1}" 2`
+
+    [[ ${lopt} == help ]] && return
+
+    defv=`field "${1}" 6`
+    nopt=opt_${lopt//-/_}
+
+    eval ${nopt}=${defv}
+}
+
+fshow() {
+    lopt=`field "${1}" 2`
+
+    [[ ${lopt} == help ]] && return
+
+    nopt=opt_${lopt//-/_}
+
+    echo "${nopt}=${!nopt}"
+}
+
+fiter() {
+    for ((i = 0; i < ${#options[@]}; i++)) ; do
+        if [[ `field "${options[${i}]}" 7` =~ ${cmd} ]] ; then
+            ${1} "${options[${i}]}" || true
+        fi
+    done
+}
+
+usage() {
+cat << EOF
+${headline}
+Usage: ${0} ${cmd} `fiter flist`
+
+Options:
+`fiter fhelp`
+EOF
+}
+
+fiter fdefaults
+
+sopts=`fiter fshort`
+lopts=`fiter flong`
+popts=`getopt -n "${0} ${cmd}" -o ${sopts} -l ${lopts::-1} -- "${@}"`
+
+eval set -- ${popts}
+
+parse_next() {
+    for ((i = 0; i < ${#options[@]}; i++)) ; do
+        vopt="${options[${i}]}"
+
+        sopt=`field "${vopt}" 1`
+        lopt=`field "${vopt}" 2`
+
+        [[ ${1} != -${sopt} ]] && [[ ${1} != --${lopt} ]] && continue
+
+        meta=`field "${vopt}" 3`
+        nopt=opt_${lopt//-/_}
+
+        if [[ -z ${meta} ]] ; then
+            eval ${nopt}=true
+            shift_next=1
+        else
+            eval ${nopt}=${2}
+            shift_next=2
+        fi
+    done
+}
+
+while true ; do
+    case ${1} in
+    -h|--help)
+        usage | less -CQS~
+        exit 0
+        ;;
+    --)
+        shift
+        break
+        ;;
+    *)
+        parse_next ${@}
+        shift ${shift_next}
+        ;;
+    esac
+done
+
+if [[ -n ${1:-} ]] ; then
+    while [[ -n ${1:-} ]] ; do
+        echo "${0} ${cmd}: unrecognized option -- '${1}'"
+        shift
+    done
+
+    exit 1
+fi
+
+blue() {
+    echo -e "\033[1;34m${1}\033[0m"
+}
+
+red() {
+    echo -e "\033[1;31m${1}\033[0m"
+}
+
+blue "${headline}"
+blue "Called '${cmd}' command with the following options:"
+fiter fshow
+
+case ${cmd} in
+load|new)
+    sim_dir=${HOME}/.salis/${opt_name}
+    sim_path=${sim_dir}/${opt_name}
+    sim_opts=${sim_dir}/opts
+    ;;
+esac
+
+case ${cmd} in
+load)
+    if [[ ! -d ${sim_dir} ]] ; then
+        red "Error: no saved simulation was found named '${opt_name}'."
+        exit 1
+    fi
+
+    blue "Sourcing configurations from '${sim_opts}':"
+    cat ${sim_opts}
+    source ${sim_opts}
+    ;;
+esac
+
+blue "Generating a temporary Salis directory:"
+salis_tmp=/tmp/salis-tmp
+salis_exe=${salis_tmp}/salis-bin
+mkdir -pv ${salis_tmp}
+
+act_bench=1
+act_load=2
+act_new=3
+
+act_var="act_${cmd}"
+
+gcc_flags="-Wall -Wextra -Werror -std=c11 -pedantic"
+
+fquote() {
+    echo "\\\"${1}\\\""
+}
+
+fpow() {
+    printf '%#xul' $((1 << ${1}))
+}
+
+bcmd="gcc src/salis.c -o ${salis_exe} ${gcc_flags} -Isrc -lncursesw"
+bcmd="${bcmd} `[[ ${opt_optimized} == true ]] && echo "-O3 -DNDEBUG" || echo "-ggdb"`"
+bcmd="${bcmd} -DACTION=${!act_var}"
+bcmd="${bcmd} -DARCHITECTURE=`fquote ${opt_arch}`"
+bcmd="${bcmd} -DARCH_SOURCE=`fquote arch/${opt_arch}.c`"
+bcmd="${bcmd} -DCORE_COUNT=${opt_cores}"
+bcmd="${bcmd} -DMUTA_RANGE=`fpow ${opt_muta_pow}`"
+bcmd="${bcmd} -DMVEC_SIZE=`fpow ${opt_mvec_pow}`"
+bcmd="${bcmd} -DNCURSES_WIDECHAR=1"
+bcmd="${bcmd} -DSEED=${opt_seed}ul"
+bcmd="${bcmd} -DSYNC_INTERVAL=`fpow ${opt_sync_pow}`"
+bcmd="${bcmd} -DTGAP_SIZE=${opt_thread_gap}ul"
+
+case ${cmd} in
+bench)
+    bcmd="${bcmd} -DBENCH_STEPS=${opt_steps}ul"
+    bcmd="${bcmd} -DUI=`fquote bench.c`"
+    ;;
+esac
+
+case ${cmd} in
+bench|new)
+    anc_list=
+
+    for cix in `seq 1 ${opt_cores}` ; do
+        anc_spec=`echo ${opt_anc_spec}, | cut -s -d, -f${cix}`
+        anc_spec=${anc_spec:-${opt_anc_def}}
+
+        if [[ -n ${anc_spec} ]] ; then
+            anc_src=ancs/${opt_arch}/${anc_spec}.asm
+            anc_path=${salis_tmp}/${anc_spec}.asm
+            sed -E '/(^$|^;)/d; s/ +/ /g' ${anc_src} > ${anc_path}
+        else
+            anc_path=_
+        fi
+
+        anc_list=${anc_list}${anc_path},
+    done
+
+    bcmd="${bcmd} -DANC_LIST=`fquote "${anc_list::-1}"`"
+    ;;
+esac
+
+case ${cmd} in
+load|new)
+    bcmd="${bcmd} -DAUTO_SAVE_INTERVAL=`fpow ${opt_auto_save_pow}`"
+    bcmd="${bcmd} -DAUTO_SAVE_NAME_LEN=$((${#sim_path} + 20))"
+    bcmd="${bcmd} -DMUTA_FLIP_BIT=`[[ ${opt_muta_flip} == true ]] && echo 1 || echo 0`"
+    bcmd="${bcmd} -DSIM_NAME=`fquote ${opt_name}`"
+    bcmd="${bcmd} -DSIM_PATH=`fquote ${sim_path}`"
+    bcmd="${bcmd} -DUI=`fquote ui/${opt_ui}.c`"
+    ;;
+esac
+
+blue "Using build command:"
+echo "${bcmd}"
+eval "${bcmd}"
+
+case ${cmd} in
+new)
+    if [[ -d ${sim_dir} ]] && [[ ${opt_force} == true ]] ; then
+        red "Force flag used. Wiping old simulation at '${sim_dir}':"
+        rm -rv ${sim_dir}
+    fi
+
+    if [[ -d ${sim_dir} ]] ; then
+        red "Error: simulation directory found at '${sim_dir}'."
+        red "Please, remove it or call 'load' instead."
+        exit 1
+    fi
+
+    blue "Creating new simulation directory at '${sim_dir}':"
+    mkdir -pv ${sim_dir}
+    ;;
+esac
+
+rcmd="`[[ -z ${opt_pre_cmd} ]] || echo "${opt_pre_cmd} "`${salis_exe}"
+
+blue "Using run command:"
+echo "${rcmd}"
+
+blue "Running Salis..."
+eval "${rcmd}"
+
+case ${cmd} in
+new)
+    blue "Saving new simulation configuration file at:"
+    echo "${sim_opts}"
+
+    for ((i = 0; i < ${#options[@]}; i++)) ; do
+        oopt=`field "${options[${i}]}" 7`
+
+        [[ ! ${oopt} =~ new ]] || [[ ${oopt} =~ load ]] && continue
+
+        lopt=`field "${options[${i}]}" 2`
+        nopt=opt_${lopt//-/_}
+
+        echo "${nopt}=${!nopt}" >> ${sim_opts}
+    done
+    ;;
+esac
+
+blue "Removing temporary Salis directory and resources:"
+rm -rv ${salis_tmp}
