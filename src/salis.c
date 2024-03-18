@@ -61,7 +61,7 @@ char       g_asav_pbuf[AUTO_SAVE_NAME_LEN];
 #endif
 const Proc g_dead_proc;
 
-#include ARCHITECTURE
+#include ARCH_SOURCE
 
 u64 mvec_loop(u64 addr) {
     return addr % MVEC_SIZE;
@@ -224,6 +224,12 @@ const Proc *proc_get(const Core *core, u64 pix) {
 }
 
 #if ACTION == ACT_BENCH || ACTION == ACT_NEW
+void core_assemble_ancestor(int cix) {
+    assert(cix >= 0 && cix < CORE_COUNT);
+
+    (void)cix;
+}
+
 void core_init(int cix, u64 *seed) {
     assert(cix >= 0 && cix < CORE_COUNT);
     assert(seed);
@@ -246,6 +252,8 @@ void core_init(int cix, u64 *seed) {
     assert(core->iviv);
     assert(core->ivav);
     assert(core->pvec);
+
+    core_assemble_ancestor(cix);
 }
 #endif
 
@@ -363,6 +371,10 @@ void core_step(Core *core) {
     core_step(core);
 }
 
+#if ACTION == ACT_NEW
+void salis_auto_save();
+#endif
+
 #if ACTION == ACT_BENCH || ACTION == ACT_NEW
 void salis_init() {
     u64 seed = SEED;
@@ -370,6 +382,10 @@ void salis_init() {
     for (int i = 0; i < CORE_COUNT; ++i) {
         core_init(i, &seed);
     }
+
+#if ACTION == ACT_NEW
+    salis_auto_save();
+#endif
 }
 #endif
 
