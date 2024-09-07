@@ -27,6 +27,8 @@
 #define INST_CAPS (0x80)
 #define INST_MASK (0x7f)
 
+#define U64_HALF (0x8000000000000000)
+
 typedef struct Core Core;
 typedef struct Ipcm Ipcm;
 typedef struct Proc Proc;
@@ -296,7 +298,12 @@ u64 core_assemble_ancestor(int cix, const char *anc) {
 
     assert(f);
 
-    u64   addr               = 0;
+#if ANC_HALF == 1
+    u64 addr = U64_HALF;
+#else
+    u64 addr = 0;
+#endif
+
     char  line[ASM_LINE_LEN] = {0};
     Core *core               = &g_cores[cix];
 
@@ -352,6 +359,10 @@ void core_init(int cix, u64 *seed, const char *anc) {
 
     u64 anc_size = core_assemble_ancestor(cix, anc);
 
+#if ANC_HALF == 1
+    anc_size -= U64_HALF;
+#endif
+
     arch_anc_init(core, anc_size);
 }
 #endif
@@ -361,6 +372,8 @@ void core_load(FILE *f, Core *core) {
     assert(f);
     assert(core);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
     fread(&core->mall, sizeof(u64), 1, f);
     fread( core->muta, sizeof(u64), 4, f);
     fread(&core->pnum, sizeof(u64), 1, f);
@@ -371,6 +384,7 @@ void core_load(FILE *f, Core *core) {
     fread(&core->psli, sizeof(u64), 1, f);
     fread(&core->ncyc, sizeof(u64), 1, f);
     fread(&core->ivpt, sizeof(u64), 1, f);
+#pragma GCC diagnostic pop
 
     core->iviv = calloc(SYNC_INTERVAL, sizeof(u8));
     core->ivav = calloc(SYNC_INTERVAL, sizeof(u64));
@@ -380,10 +394,13 @@ void core_load(FILE *f, Core *core) {
     assert(core->ivav);
     assert(core->pvec);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
     fread(core->iviv, sizeof(u8),   SYNC_INTERVAL, f);
     fread(core->ivav, sizeof(u64),  SYNC_INTERVAL, f);
     fread(core->pvec, sizeof(Proc), core->pcap,    f);
     fread(core->mvec, sizeof(u8),   MVEC_SIZE,     f);
+#pragma GCC diagnostic pop
 }
 #endif
 
@@ -521,8 +538,12 @@ void salis_load() {
         core_load(f, &g_cores[i]);
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
     fread(&g_steps, sizeof(u64), 1, f);
     fread(&g_syncs, sizeof(u64), 1, f);
+#pragma GCC diagnostic pop
+
     fclose(f);
 }
 #endif

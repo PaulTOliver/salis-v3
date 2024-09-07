@@ -78,6 +78,7 @@ options=(
     "c|cores|N|number of simulator cores||2|bench:new"
     "F|muta-flip||cosmic rays flip bits instead of randomizing whole bytes||false|bench:new"
     "f|force||overwrite existing simulation of given name||false|new"
+    "H|half||compile ancestor at the middle of the memory buffer||false|bench:new"
     "h|help||${help_msg}|||bench:load:new"
     "M|muta-pow|POW|mutator range exponent (range == 2^POW)||32|bench:new"
     "m|mvec-pow|POW|memory vector size exponent (size == 2^POW)||20|bench:new"
@@ -283,7 +284,7 @@ fpow() {
     printf '%#xul' $((1 << ${1}))
 }
 
-bcmd="gcc src/salis.c -o ${salis_exe} ${gcc_flags} -Isrc -lncursesw"
+bcmd="gcc src/salis.c -o ${salis_exe} ${gcc_flags} -Isrc -lncursesw -pthread"
 bcmd="${bcmd} `[[ ${opt_optimized} == true ]] && echo "-O3 -DNDEBUG" || echo "-ggdb"`"
 bcmd="${bcmd} -DACTION=${!act_var}"
 bcmd="${bcmd} -DARCHITECTURE=`fquote ${opt_arch}`"
@@ -323,6 +324,7 @@ bench|new)
     done
 
     bcmd="${bcmd} -DANC_LIST=`fquote "${anc_list::-1}"`"
+    bcmd="${bcmd} -DANC_HALF=`[[ ${opt_half} == true ]] && echo 1 || echo 0`"
     ;;
 esac
 

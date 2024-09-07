@@ -200,7 +200,15 @@ void arch_on_proc_kill(Core *core) {
 void arch_anc_init(Core *core, u64 size) {
     assert(core);
 
-    proc_fetch(core, 0)->mb0s = size;
+    Proc *panc = proc_fetch(core, 0);
+
+#if ANC_HALF == 1
+    panc->mb0a = U64_HALF;
+    panc->ip   = U64_HALF;
+    panc->sp   = U64_HALF;
+#endif
+
+    panc->mb0s = size;
 }
 #endif
 
