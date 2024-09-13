@@ -316,8 +316,13 @@ u64 core_assemble_ancestor(int cix, const char *anc) {
 
         for (int i = 0; i < 0x100; ++i) {
             if (strcmp(line, g_mnemo_table[i]) == 0) {
-                mvec_alloc(core, addr);
-                mvec_set_inst(core, addr, i);
+                for (u64 j = 0; j < ANC_CLONES; ++j) {
+                    u64 addr_clone = addr + ((MVEC_SIZE / ANC_CLONES) * j);
+
+                    mvec_alloc(core, addr_clone);
+                    mvec_set_inst(core, addr_clone, i);
+                }
+
 #ifndef NDEBUG
                 line_ok = true;
 #endif
@@ -347,8 +352,9 @@ void core_init(int cix, u64 *seed, const char *anc) {
         core->muta[3] = muta_smix(seed);
     }
 
-    core->pnum = 1;
-    core->pcap = 1;
+    core->pnum = ANC_CLONES;
+    core->pcap = ANC_CLONES;
+    core->plst = ANC_CLONES - 1;
     core->iviv = calloc(SYNC_INTERVAL, sizeof(u8));
     core->ivav = calloc(SYNC_INTERVAL, sizeof(u64));
     core->pvec = calloc(core->pcap, sizeof(Proc));

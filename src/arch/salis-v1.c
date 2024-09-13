@@ -200,15 +200,22 @@ void arch_on_proc_kill(Core *core) {
 void arch_anc_init(Core *core, u64 size) {
     assert(core);
 
-    Proc *panc = proc_fetch(core, 0);
-
 #if ANC_HALF == 1
-    panc->mb0a = U64_HALF;
-    panc->ip   = U64_HALF;
-    panc->sp   = U64_HALF;
+    u64 addr = U64_HALF;
+#else
+    u64 addr = 0;
 #endif
 
-    panc->mb0s = size;
+    for (int i = 0; i < ANC_CLONES; ++i) {
+        u64 addr_clone = addr + ((MVEC_SIZE / ANC_CLONES) * i);
+
+        Proc *panc = proc_fetch(core, i);
+
+        panc->mb0a = addr_clone;
+        panc->mb0s = size;
+        panc->ip   = addr_clone;
+        panc->sp   = addr_clone;
+    }
 }
 #endif
 

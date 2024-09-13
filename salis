@@ -75,6 +75,7 @@ options=(
     "A|anc-def|ANC|`anc_def_desc`|||bench:new"
     "a|arch|ARCH|VM architecture|${arches}|dummy|bench:new"
     "b|steps|N|number of steps to run in benchmark||0x1000000|bench"
+    "C|clones|N|number of ancestor clones on each core||1|bench:new"
     "c|cores|N|number of simulator cores||2|bench:new"
     "F|muta-flip||cosmic rays flip bits instead of randomizing whole bytes||false|bench:new"
     "f|force||overwrite existing simulation of given name||false|new"
@@ -325,6 +326,7 @@ bench|new)
 
     bcmd="${bcmd} -DANC_LIST=`fquote "${anc_list::-1}"`"
     bcmd="${bcmd} -DANC_HALF=`[[ ${opt_half} == true ]] && echo 1 || echo 0`"
+    bcmd="${bcmd} -DANC_CLONES=${opt_clones}"
     ;;
 esac
 
