@@ -337,7 +337,7 @@ void ui_world_resize() {
     }
 }
 
-void ui_print_cell(u64 i, u64 r, u64 x, u64 y) {
+void ui_print_cell(u64 i, u64 r, u64 x, u64 y, u64 a) {
     wchar_t inst_nstr[2] = { L'\0', L'\0' };
     cchar_t cchar        = { 0 };
     u64     inst_avrg    = g_gfx_inst[i] / g_wrld_zoom;
@@ -350,7 +350,9 @@ void ui_print_cell(u64 i, u64 r, u64 x, u64 y) {
 
     int pair_cell;
 
-    if (g_wcursor_mode && r == (u64)g_wcursor_x && y == (u64)g_wcursor_y) {
+    if (a >= MVEC_SIZE) {
+        pair_cell = PAIR_NORMAL;
+    } else if (g_wcursor_mode && r == (u64)g_wcursor_x && y == (u64)g_wcursor_y) {
         pair_cell = PAIR_NORMAL;
     } else if (g_gfx_ipas[i] != 0) {
         pair_cell = PAIR_SELECTED_IP;
@@ -460,8 +462,9 @@ void ui_print_world(int l) {
         u64 r = i % g_vlin;
         u64 x = r + PANE_WIDTH;
         u64 y = i / g_vlin;
+        u64 a = g_wrld_pos + (i * g_wrld_zoom);
 
-        ui_print_cell(i, r, x, y);
+        ui_print_cell(i, r, x, y, a);
     }
 
     if (g_wcursor_mode) {
@@ -591,7 +594,15 @@ void ev_vscroll(int ev) {
             g_wrld_pos += g_vlin_rng;
             break;
         case 's':
+#ifdef MVEC_LOOP
             g_wrld_pos -= g_vlin_rng;
+#else
+            if (g_wrld_pos < g_vlin_rng) {
+                g_wrld_pos = 0;
+            } else {
+                g_wrld_pos -= g_vlin_rng;
+            }
+#endif
             break;
         case 'q':
             g_wrld_pos = 0;
@@ -652,7 +663,15 @@ void ev_hscroll(int ev) {
     case PAGE_WORLD:
         switch (ev) {
         case 'a':
+#ifdef MVEC_LOOP
             g_wrld_pos -= g_wrld_zoom;
+#else
+            if (g_wrld_pos < g_wrld_zoom) {
+                g_wrld_pos = 0;
+            } else {
+                g_wrld_pos -= g_wrld_zoom;
+            }
+#endif
             break;
         case 'd':
             g_wrld_pos += g_wrld_zoom;

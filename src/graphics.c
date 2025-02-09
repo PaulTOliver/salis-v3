@@ -89,10 +89,9 @@ void gfx_render_inst(const Core *core, u64 pos, u64 zoom) {
 
         for (u64 j = 0; j < zoom; ++j) {
             u64 addr = pos + (i * zoom) + j;
-            u8  byte = mvec_get_byte(core, addr);
 
-            g_gfx_inst[i] += byte;
-            g_gfx_mall[i] += (byte & MALL_FLAG) ? 1 : 0;
+            g_gfx_inst[i] += mvec_get_byte(core, addr);
+            g_gfx_mall[i] += mvec_is_alloc(core, addr) ? 1 : 0;
         }
     }
 }
@@ -102,6 +101,7 @@ void gfx_clear_array(u64 *arry) {
     memset(arry, 0, g_gfx_vsiz * sizeof(u64));
 }
 
+#ifdef MVEC_LOOP
 void gfx_accumulate_pixel(u64 pos, u64 zoom, u64 pixa, u64 *arry) {
     assert(arry);
 
@@ -134,6 +134,21 @@ void gfx_accumulate_pixel(u64 pos, u64 zoom, u64 pixa, u64 *arry) {
     }
 #endif
 }
+#else
+void gfx_accumulate_pixel(u64 pos, u64 zoom, u64 pixa, u64 *arry) {
+    assert(arry);
+
+    u64 end = pos + (g_gfx_vsiz * zoom);
+
+    if (pixa < pos || pixa >= end) {
+        return;
+    }
+
+    u64 pixi = (pixa - pos) / zoom;
+    assert(pixi < g_gfx_vsiz);
+    arry[pixi]++;
+}
+#endif
 
 void gfx_render_mbst(const Core *core, u64 pos, u64 zoom) {
     assert(core);

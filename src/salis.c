@@ -73,51 +73,93 @@ const Proc g_dead_proc;
 char g_mnemo_table[0x100][MNEMONIC_BUFF_SIZE];
 #endif
 
+#ifdef MVEC_LOOP
 u64 mvec_loop(u64 addr) {
     return addr % MVEC_SIZE;
 }
+#endif
 
 bool mvec_is_alloc(const Core *core, u64 addr) {
     assert(core);
+#ifdef MVEC_LOOP
     return core->mvec[mvec_loop(addr)] & MALL_FLAG ? true : false;
+#else
+    if (addr < MVEC_SIZE) {
+        return core->mvec[addr] & MALL_FLAG ? true : false;
+    } else {
+        return true;
+    }
+#endif
 }
 
 void mvec_alloc(Core *core, u64 addr) {
     assert(core);
     assert(!mvec_is_alloc(core, addr));
+#ifdef MVEC_LOOP
     core->mvec[mvec_loop(addr)] |= MALL_FLAG;
+#else
+    assert(addr < MVEC_SIZE);
+    core->mvec[addr] |= MALL_FLAG;
+#endif
     core->mall++;
 }
 
 void mvec_free(Core *core, u64 addr) {
     assert(core);
     assert(mvec_is_alloc(core, addr));
+#ifdef MVEC_LOOP
     core->mvec[mvec_loop(addr)] ^= MALL_FLAG;
+#else
+    assert(addr < MVEC_SIZE);
+    core->mvec[addr] ^= MALL_FLAG;
+#endif
     core->mall--;
 }
 
 u8 mvec_get_byte(const Core *core, u64 addr) {
     assert(core);
+#ifdef MVEC_LOOP
     return core->mvec[mvec_loop(addr)];
+#else
+    if (addr < MVEC_SIZE) {
+        return core->mvec[addr];
+    } else {
+        return 0;
+    }
+#endif
 }
 
 u8 mvec_get_inst(const Core *core, u64 addr) {
     assert(core);
+#ifdef MVEC_LOOP
     return core->mvec[mvec_loop(addr)] & INST_MASK;
+#else
+    if (addr < MVEC_SIZE) {
+        return core->mvec[addr] & INST_MASK;
+    } else {
+        return 0;
+    }
+#endif
 }
 
 void mvec_set_inst(Core *core, u64 addr, u8 inst) {
     assert(core);
     assert(inst < INST_CAPS);
+#ifdef MVEC_LOOP
     core->mvec[mvec_loop(addr)] &= MALL_FLAG;
     core->mvec[mvec_loop(addr)] |= inst;
+#else
+    assert(addr < MVEC_SIZE);
+    core->mvec[addr] &= MALL_FLAG;
+    core->mvec[addr] |= inst;
+#endif
 }
 
 #if MUTA_FLIP_BIT == 1
 void mvec_flip_bit(Core *core, u64 addr, int bit) {
     assert(core);
     assert(bit < 8);
-    core->mvec[mvec_loop(addr)] ^= (1 << bit) & INST_MASK;
+    core->mvec[addr] ^= (1 << bit) & INST_MASK;
 }
 #endif
 
