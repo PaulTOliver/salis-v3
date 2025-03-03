@@ -1,5 +1,0 @@
-= TODO
-Paul Oliver <contact@pauloliver.dev>
-
-== Architectures
-. salis-v3
