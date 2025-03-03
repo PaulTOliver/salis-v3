@@ -11,7 +11,7 @@
 set -euo pipefail
 
 headline="Salis: Simple A-Life Simulator."
-help_msg="show help and exit"
+help_msg="Shows help and exits"
 
 usage() {
 cat << EOF
@@ -22,9 +22,9 @@ Options:
   -h, --help    ${help_msg}
 
 Commands:
-  bench         run benchmark test
-  load          load saved simulation
-  new           create a new simulation
+  bench         Runs benchmark
+  load          Loads saved simulation
+  new           Creates a new simulation
 
 Use '-h' to list arguments for each command.
 Example: ${0} bench -h
@@ -35,7 +35,7 @@ case ${1:-} in
 bench|load|new)
     ;;
 -h|--help)
-    usage | less -CQS~
+    usage
     exit 0
     ;;
 "")
@@ -60,38 +60,38 @@ arches=`falter arch`
 uis=`falter ui`
 
 anc_def_desc() {
-    echo "default ancestor file name without extension, "
+    echo "Default ancestor file name without extension, "
     echo "to be compiled on all cores "
     echo "('ANC' points to file 'ancs/<ARCH>/<ANC>.asm')"
 }
 
 anc_spec_def() {
-    echo "core specific ancestor file names separated by commas, "
-    echo "using same convention as with default ancestor (<ANC0>,<ANC1>,...), "
-    echo "when provided will override default ancestor on specified cores"
+    echo "Core specific ancestor file names separated by commas, "
+    echo "using same convention as with default ancestor (<ANC0>,<ANC1>,...). "
+    echo "When provided will override default ancestor on specified cores."
 }
 
 options=(
     "A|anc-def|ANC|`anc_def_desc`|||bench:new"
     "a|arch|ARCH|VM architecture|${arches}|dummy|bench:new"
-    "b|steps|N|number of steps to run in benchmark||0x1000000|bench"
-    "C|clones|N|number of ancestor clones on each core||1|bench:new"
-    "c|cores|N|number of simulator cores||2|bench:new"
-    "F|muta-flip||cosmic rays flip bits instead of randomizing whole bytes||false|bench:new"
-    "f|force||overwrite existing simulation of given name||false|new"
-    "H|half||compile ancestor at the middle of the memory buffer||false|bench:new"
+    "b|steps|N|Number of steps to run in benchmark||0x1000000|bench"
+    "C|clones|N|Number of ancestor clones on each core||1|bench:new"
+    "c|cores|N|Number of simulator cores||2|bench:new"
+    "F|muta-flip||Cosmic rays flip bits instead of randomizing whole bytes||false|bench:new"
+    "f|force||Overwrites existing simulation of given name||false|new"
+    "H|half||Compiles ancestor at the middle of the memory buffer||false|bench:new"
     "h|help||${help_msg}|||bench:load:new"
-    "M|muta-pow|POW|mutator range exponent (range == 2^POW)||32|bench:new"
-    "m|mvec-pow|POW|memory vector size exponent (size == 2^POW)||20|bench:new"
-    "n|name|NAME|name of new or loaded simulation||def.sim|load:new"
-    "o|optimized||build Salis binary with optimizations||false|bench:load:new"
-    "p|pre-cmd|CMD|shell command to wrap executable (e.g. gdb)|||bench:load:new"
+    "M|muta-pow|POW|Mutator range exponent (range == 2^POW)||32|bench:new"
+    "m|mvec-pow|POW|Memory vector size exponent (size == 2^POW)||20|bench:new"
+    "n|name|NAME|Name of new or loaded simulation||def.sim|load:new"
+    "o|optimized||Builds Salis binary with optimizations||false|bench:load:new"
+    "p|pre-cmd|CMD|Shell command to wrap executable (e.g. gdb, valgrind, etc.)|||bench:load:new"
     "S|anc-spec|ANC0,ANC1,...|`anc_spec_def`|||bench:new"
-    "s|seed|SEED|seed value for new simulation||0|bench:new"
-    "t|thread-gap|N|memory gap between cores (in bytes)||0x100|bench:load:new"
-    "u|ui|UI|user interface|${uis}|curses|load:new"
-    "y|sync-pow|POW|core sync interval exponent (interval == 2^POW)||20|bench:new"
-    "z|auto-save-pow|POW|auto save interval exponent (interval == 2^POW)||36|new"
+    "s|seed|SEED|Seed value for new simulation||0|bench:new"
+    "t|thread-gap|N|Memory gap between cores in bytes (could help reduce cache misses?)||0x100|bench:load:new"
+    "u|ui|UI|User interface|${uis}|curses|load:new"
+    "y|sync-pow|POW|Core sync interval exponent (interval == 2^POW)||20|bench:new"
+    "z|auto-save-pow|POW|Auto-save interval exponent (interval == 2^POW)||36|new"
 )
 
 field() {
@@ -111,7 +111,7 @@ fhelp() {
     lopt=`field "${1}" 2`
     meta=`field "${1}" 3`
 
-    printf %-32s "  -${sopt}, --${lopt}`[[ -n ${meta} ]] && echo " ${meta}"`"
+    printf "%s\r" "  -${sopt}, --${lopt}`[[ -n ${meta} ]] && echo " ${meta}"`"
 
     help=`field "${1}" 4`
     choi=`field "${1}" 5`
@@ -119,7 +119,7 @@ fhelp() {
     copt=`[[ -n ${choi} ]] && echo " (choices: ${choi/:/, })"`
     dopt=`[[ -n ${defv} ]] && echo " (default: ${defv})"`
 
-    echo ${help}${copt}${dopt}
+    echo -e "\t\t\t\t${help}${copt}${dopt}" | fmt -w120
 }
 
 fshort() {
@@ -168,7 +168,7 @@ fiter() {
 usage() {
 cat << EOF
 ${headline}
-Usage: ${0} ${cmd} `fiter flist`
+Usage: ${0} ${cmd} `fiter flist | fmt -t -w120`
 
 Options:
 `fiter fhelp`
@@ -208,7 +208,7 @@ parse_next() {
 while true ; do
     case ${1} in
     -h|--help)
-        usage | less -CQS~
+        usage
         exit 0
         ;;
     --)
