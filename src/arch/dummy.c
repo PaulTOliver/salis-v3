@@ -11,7 +11,12 @@
 bool proc_is_live(const Core *core, u64 pix);
 
 #define PROC_FIELDS \
-    PROC_FIELD(u64, dmmy)
+    PROC_FIELD(u64, ip)   \
+    PROC_FIELD(u64, sp)   \
+    PROC_FIELD(u64, mb0a) \
+    PROC_FIELD(u64, mb0s) \
+    PROC_FIELD(u64, mb1a) \
+    PROC_FIELD(u64, mb1s)
 
 struct Proc {
 #define PROC_FIELD(type, name) type name;
